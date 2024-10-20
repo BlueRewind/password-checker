@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeModeScript } from "flowbite-react";
 import "./globals.css";
+import ConfigureAmplifyClientSide from "./amplify-cognito-config";
+import NavbarComponent from "@/components/Navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,8 +21,12 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <ThemeModeScript />
+        <ConfigureAmplifyClientSide />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <NavbarComponent />
+        {children}
+      </body>
     </html>
   );
 }
