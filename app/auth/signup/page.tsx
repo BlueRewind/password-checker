@@ -1,18 +1,14 @@
 "use client";
-
-import { FormEvent, useState } from "react";
 import { Button, Card, Label, TextInput } from "flowbite-react";
-import { signUp, confirmSignUp, signIn } from "aws-amplify/auth";
-
-interface SignUpFormElements extends HTMLFormControlsCollection {
-  email: HTMLInputElement;
-  password: HTMLInputElement;
-  code: HTMLInputElement;
-}
-
-interface SignUpForm extends HTMLFormElement {
-  readonly elements: SignUpFormElements;
-}
+import {
+  CognitoIdentityProviderClient,
+  ConfirmSignUpCommand,
+  SignUpCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
+import { createHmac } from "crypto";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/router";
 
 enum SignUpSteps {
   CONFIRM_SIGN_UP = "CONFIRM_SIGN_UP",
@@ -20,58 +16,67 @@ enum SignUpSteps {
   COMPLETE_AUTO_SIGN_IN = "COMPLETE_AUTO_SIGN_IN",
 }
 
-export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmationCode, setConfirmationCode] = useState("");
-  const [step, setStep] = useState<SignUpSteps | null>(null);
-  const [errors, setErrors] = useState({ email: "", password: "", code: "" });
+const generateSecretHash = (email: String): string => {
+  const message = email + String(process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_ID);
+  const hmac = createHmac(
+    "sha256",
+    String(process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_SECRET),
+  );
+  hmac.update(message);
+  return hmac.digest("base64");
+};
 
-  const handleSubmit = async (event: FormEvent<SignUpForm>) => {
-    event.preventDefault();
-    setErrors({ email: "", password: "", code: "" });
+export default function Signup() {
+  const [step, setStep] = useState<SignUpSteps | null>(null);
+  const [email, setEmail] = useState<string>("");
+  // const router = useRouter();
+
+  async function handleSignUp(formData: FormData) {
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const givenName = formData.get("given_name") as string;
+    setEmail(email);
+    const secretHash = generateSecretHash(email);
+
+    const client = new CognitoIdentityProviderClient({ region: "us-east-1" });
+    const command = new SignUpCommand({
+      ClientId: process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_ID,
+      SecretHash: secretHash,
+      UserAttributes: [{ Name: "given_name", Value: givenName }],
+      Username: email,
+      Password: password,
+    });
 
     try {
-      await signUp({
-        username: email,
-        password,
-        options: {
-          userAttributes: { email: email },
-          autoSignIn: true,
-        },
-      });
+      await client.send(command);
       setStep(SignUpSteps.CONFIRM_SIGN_UP);
     } catch (error: any) {
-      setErrors((prev) => ({
-        ...prev,
-        email: error.message || "Signup failed",
-      }));
+      return { error: error.message || "Error signing up" };
     }
-  };
+  }
 
-  const handleConfirm = async (event: FormEvent<SignUpForm>) => {
-    event.preventDefault();
-    setErrors({ email: "", password: "", code: "" });
-
+  const handleConfirm = async (formData: FormData) => {
+    const confirmationCode = formData.get("code") as string;
+    const secretHash = generateSecretHash(email);
     try {
-      const user = await confirmSignUp({
-        username: email,
-        confirmationCode: confirmationCode,
+      const command = new ConfirmSignUpCommand({
+        ClientId: process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_ID,
+        SecretHash: secretHash,
+        Username: email,
+        ConfirmationCode: confirmationCode,
       });
-      if (user.isSignUpComplete) {
-        console.log("awaiting sign in");
-        const signInResponse = await signIn({
-          username: email,
-          password: password,
-        });
-        console.log("Sign-in successful:", signInResponse);
-        setStep(SignUpSteps.DONE);
+      const client = new CognitoIdentityProviderClient({ region: "us-east-1" });
+      const data = await client.send(command);
+      if (data.$metadata.httpStatusCode == 200) {
+        const result = await signIn("cognito");
+        if (result?.error) {
+          console.error("Sign-in error:", result.error);
+        } else {
+          router.push("/");
+        }
       }
     } catch (error: any) {
-      setErrors((prev) => ({
-        ...prev,
-        code: error.message || "Invalid confirmation code",
-      }));
+      console.error(`Error ${error}`);
     }
   };
 
@@ -79,36 +84,41 @@ export default function Signup() {
     <main className="flex min-h-screen min-w-full items-center justify-center gap-2 dark:bg-gray-700">
       {step === SignUpSteps.CONFIRM_SIGN_UP ? (
         <Card className="w-full max-w-sm rounded p-2 shadow-lg dark:bg-gray-800">
-          <form className="flex flex-col gap-4" onSubmit={handleConfirm}>
+          <form className="flex flex-col gap-4" action={handleConfirm}>
             <div>
               <Label htmlFor="code" value="Confirmation Code" />
               <TextInput
                 id="code"
                 name="code"
-                value={confirmationCode}
-                onChange={(e) => setConfirmationCode(e.target.value)}
                 required
                 placeholder="Enter your confirmation code"
               />
-              {errors.code && <p className="text-red-500">{errors.code}</p>}
             </div>
             <Button type="submit">Confirm Sign Up</Button>
           </form>
         </Card>
       ) : (
         <Card className="w-full max-w-sm rounded p-2 shadow-lg dark:bg-gray-800">
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <form className="flex flex-col gap-4" action={handleSignUp}>
             <h1 className="mb-4 text-center text-2xl font-bold text-white">
               Sign Up
             </h1>
+            <div>
+              <Label htmlFor="given_name" value="Given Name" />
+              <TextInput
+                id="given_name"
+                name="given_name"
+                type="text"
+                required
+                placeholder="James P"
+              />
+            </div>
             <div>
               <Label htmlFor="email" value="Email" />
               <TextInput
                 id="email"
                 name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="name@domain.com"
               />
@@ -119,16 +129,10 @@ export default function Signup() {
                 id="password"
                 name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="********"
               />
             </div>
-            {errors.email && <p className="text-red-500">{errors.email}</p>}
-            {errors.password && (
-              <p className="text-red-500">{errors.password}</p>
-            )}
             <Button gradientDuoTone="purpleToBlue" type="submit">
               Sign Up
             </Button>
