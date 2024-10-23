@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeModeScript } from "flowbite-react";
 import "./globals.css";
 import NavbarComponent from "@/components/Navbar";
-import NextAuthProvider from "../components/NextAuthProvider";
+import ConfigureAmplifyClientSide from "@/app/amplify-cognito-config";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,12 +21,13 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <ThemeModeScript />
+        <ConfigureAmplifyClientSide />
       </head>
       <body className={inter.className}>
-        <NextAuthProvider>
-          <NavbarComponent />
-          {children}
-        </NextAuthProvider>
+        {/* <NextAuthProvider> */}
+        <NavbarComponent />
+        {children}
+        {/* </NextAuthProvider> */}
       </body>
     </html>
   );

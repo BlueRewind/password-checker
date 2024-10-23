@@ -1,13 +1,8 @@
 "use client";
 import { Button, Card, Label, TextInput } from "flowbite-react";
-import {
-  CognitoIdentityProviderClient,
-  ConfirmSignUpCommand,
-  SignUpCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
 import { createHmac } from "crypto";
-import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { confirmSignUp, signIn, signUp } from "aws-amplify/auth";
 
 enum SignUpSteps {
   CONFIRM_SIGN_UP = "CONFIRM_SIGN_UP",
@@ -15,19 +10,10 @@ enum SignUpSteps {
   COMPLETE_AUTO_SIGN_IN = "COMPLETE_AUTO_SIGN_IN",
 }
 
-const generateSecretHash = (email: String): string => {
-  const message = email + String(process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_ID);
-  const hmac = createHmac(
-    "sha256",
-    String(process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_SECRET),
-  );
-  hmac.update(message);
-  return hmac.digest("base64");
-};
-
 export default function Signup() {
   const [step, setStep] = useState<SignUpSteps | null>(null);
   const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
 
   async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,45 +22,42 @@ export default function Signup() {
     const password = formData.get("password") as string;
     const givenName = formData.get("given_name") as string;
     setEmail(email);
-    const secretHash = generateSecretHash(email);
+    setPassword(password);
 
-    const client = new CognitoIdentityProviderClient({ region: "us-east-1" });
-    const command = new SignUpCommand({
-      ClientId: process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_ID,
-      SecretHash: secretHash,
-      UserAttributes: [{ Name: "given_name", Value: givenName }],
-      Username: email,
-      Password: password,
+    const { isSignUpComplete, userId, nextStep } = await signUp({
+      username: email,
+      password: password,
+      options: {
+        userAttributes: {
+          given_name: givenName,
+          picture:
+            "https://upload.wikimedia.org/wikipedia/commons/2/2c/Default_pfp.svg",
+        },
+      },
     });
 
-    try {
-      await client.send(command);
+    if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
       setStep(SignUpSteps.CONFIRM_SIGN_UP);
-    } catch (error: any) {
-      return { error: error.message || "Error signing up" };
     }
   }
 
   const handleConfirm = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    console.log(formData);
     const confirmationCode = formData.get("code") as string;
-    const secretHash = generateSecretHash(email);
     try {
-      const command = new ConfirmSignUpCommand({
-        ClientId: process.env.NEXT_PUBLIC_AWS_COGNITO_CLIENT_ID,
-        SecretHash: secretHash,
-        Username: email,
-        ConfirmationCode: confirmationCode,
+      const { isSignUpComplete } = await confirmSignUp({
+        username: email,
+        confirmationCode: confirmationCode,
       });
-      const client = new CognitoIdentityProviderClient({ region: "us-east-1" });
-      const data = await client.send(command);
-      if (data.$metadata.httpStatusCode == 200) {
-        await signIn("cognito", {
-          redirect: false,
-          callbackUrl: "/",
+      if (isSignUpComplete) {
+        const { isSignedIn } = await signIn({
+          username: email,
+          password: password,
         });
+        if (isSignedIn) {
+          window.location.href = "/";
+        }
       }
     } catch (error: any) {
       console.error(`Error ${error}`);

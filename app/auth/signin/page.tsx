@@ -1,8 +1,8 @@
 "use client";
 
 import { Button, Card, Checkbox, Label, TextInput } from "flowbite-react";
-import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { signIn } from "aws-amplify/auth";
 
 interface SignInFormElements {
   email: string;
@@ -30,8 +30,13 @@ export default function SignIn() {
     if (data.email === "" || data.password === "") {
       return;
     }
-
-    await signIn("cognito", { redirect: false, callbackUrl: "/" });
+    const { isSignedIn } = await signIn({
+      username: data.email,
+      password: data.password,
+    });
+    if (isSignedIn) {
+      window.location.href = "/";
+    }
   };
 
   return (

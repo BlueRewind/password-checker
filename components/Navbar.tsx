@@ -1,18 +1,13 @@
 "use client";
 
 import { Button, Navbar, NavbarBrand } from "flowbite-react";
-import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { ProfileDropdown } from "./ProfileDropdown";
+import { useAuth } from "./AuthHook";
 
 export default function NavbarComponent() {
-  const session = useSession();
-  const handleSignOut = async () => {
-    try {
-      signOut({ callbackUrl: "http://localhost:3000" });
-    } catch (error) {
-      console.log("Error signing out:", error);
-    }
-  };
+  const { user, loading } = useAuth();
+
   return (
     <Navbar fluid className="bg-gray-900">
       <NavbarBrand className="text-lg font-bold text-white" href="/">
@@ -20,13 +15,11 @@ export default function NavbarComponent() {
       </NavbarBrand>
 
       <div className="ml-auto flex gap-4">
-        {session.status === "authenticated" ? (
+        {user !== null ? (
           <>
-            <Button gradientDuoTone="redToYellow" onClick={handleSignOut}>
-              Sign Out
-            </Button>
+            <ProfileDropdown />
           </>
-        ) : session.status === "loading" ? (
+        ) : loading ? (
           <></>
         ) : (
           <>
