@@ -3,7 +3,6 @@
 import { Button, Card, Checkbox, Label, TextInput } from "flowbite-react";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-// import { FormEvent } from "react";
 
 interface SignInFormElements {
   email: string;
@@ -32,12 +31,7 @@ export default function SignIn() {
       return;
     }
 
-    const result = await signIn("cognito");
-    if (result?.error) {
-      console.error("Sign-in error:", result.error);
-    } else {
-      // window.location.href = "/";
-    }
+    await signIn("cognito", { redirect: false, callbackUrl: "/" });
   };
 
   return (

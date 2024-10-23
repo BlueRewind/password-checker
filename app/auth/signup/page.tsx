@@ -6,9 +6,8 @@ import {
   SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { createHmac } from "crypto";
-import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/router";
+import { useState } from "react";
 
 enum SignUpSteps {
   CONFIRM_SIGN_UP = "CONFIRM_SIGN_UP",
@@ -29,9 +28,10 @@ const generateSecretHash = (email: String): string => {
 export default function Signup() {
   const [step, setStep] = useState<SignUpSteps | null>(null);
   const [email, setEmail] = useState<string>("");
-  // const router = useRouter();
 
-  async function handleSignUp(formData: FormData) {
+  async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const givenName = formData.get("given_name") as string;
@@ -55,7 +55,10 @@ export default function Signup() {
     }
   }
 
-  const handleConfirm = async (formData: FormData) => {
+  const handleConfirm = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    console.log(formData);
     const confirmationCode = formData.get("code") as string;
     const secretHash = generateSecretHash(email);
     try {
@@ -68,12 +71,10 @@ export default function Signup() {
       const client = new CognitoIdentityProviderClient({ region: "us-east-1" });
       const data = await client.send(command);
       if (data.$metadata.httpStatusCode == 200) {
-        const result = await signIn("cognito");
-        if (result?.error) {
-          console.error("Sign-in error:", result.error);
-        } else {
-          router.push("/");
-        }
+        await signIn("cognito", {
+          redirect: false,
+          callbackUrl: "/",
+        });
       }
     } catch (error: any) {
       console.error(`Error ${error}`);
@@ -84,7 +85,10 @@ export default function Signup() {
     <main className="flex min-h-screen min-w-full items-center justify-center gap-2 dark:bg-gray-700">
       {step === SignUpSteps.CONFIRM_SIGN_UP ? (
         <Card className="w-full max-w-sm rounded p-2 shadow-lg dark:bg-gray-800">
-          <form className="flex flex-col gap-4" action={handleConfirm}>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => handleConfirm(e)}
+          >
             <div>
               <Label htmlFor="code" value="Confirmation Code" />
               <TextInput
@@ -99,7 +103,10 @@ export default function Signup() {
         </Card>
       ) : (
         <Card className="w-full max-w-sm rounded p-2 shadow-lg dark:bg-gray-800">
-          <form className="flex flex-col gap-4" action={handleSignUp}>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => handleSignUp(e)}
+          >
             <h1 className="mb-4 text-center text-2xl font-bold text-white">
               Sign Up
             </h1>

@@ -6,7 +6,6 @@ import Link from "next/link";
 
 export default function NavbarComponent() {
   const session = useSession();
-  console.log(session);
   const handleSignOut = async () => {
     try {
       signOut({ callbackUrl: "http://localhost:3000" });
@@ -27,7 +26,9 @@ export default function NavbarComponent() {
               Sign Out
             </Button>
           </>
-        ) : session.status === "loading" ? <></> : (
+        ) : session.status === "loading" ? (
+          <></>
+        ) : (
           <>
             <Link href="/auth/signin">
               <Button gradientDuoTone="purpleToBlue">Login</Button>

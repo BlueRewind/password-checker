@@ -1,5 +1,8 @@
 // /pages/api/auth/register.ts
-import { CognitoIdentityProviderClient, SignUpCommand } from "@aws-sdk/client-cognito-identity-provider";
+import {
+  CognitoIdentityProviderClient,
+  SignUpCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
 import { NextRequest, NextResponse } from "next/server";
 
 export default async function handler(req, res) {
@@ -14,10 +17,12 @@ export default async function handler(req, res) {
     });
     try {
       const response = await client.send(command);
-      res.status(200).json({ message: "User registered successfully!", response });
-    } catch (error) {
+      res
+        .status(200)
+        .json({ message: "User registered successfully!", response });
+    } catch (error: any) {
       console.error("Error signing up user:", error);
-      res.status(500).json({ error: error?.message });
+      res.status(500).json({ error: error.message });
     }
   } else {
     res.status(405).json({ message: "Method Not Allowed" });
