@@ -1,6 +1,6 @@
 "use client";
 import { useAuth } from "@/components/AuthHook";
-import { Button, Card, HR, TextInput } from "flowbite-react";
+import { Button, Card, HR, TextInput, FileInput, Label } from "flowbite-react";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -13,10 +13,25 @@ export default function ProfilePage() {
         <h3 className="text-white">Given Name</h3>
         <TextInput placeholder={user?.signInDetails} />
         <h3 className="text-white">Email</h3>
-        <h3 className="text-white">{user?.signInDetails.loginId}</h3>
+        <TextInput
+          disabled
+          className="text-white"
+          value={user?.signInDetails.loginId}
+        />
+
+        <div>
+          <div className="mb-2 block">
+            <Label htmlFor="file-upload" value="Upload Profile Picture" />
+          </div>
+          <FileInput
+            accept=".svg"
+            id="file-upload-helper-text"
+            helperText="SVG (MAX. 800x400px)."
+          />
+        </div>
         <Button>Update</Button>
       </Card>
-      <Card className="w-full max-w-[80%] rounded p-7 shadow-lg dark:bg-gray-800">
+      <Card className="mb-6 w-full max-w-[80%] rounded p-7 shadow-lg dark:bg-gray-800">
         <h1 className="text-2xl text-white">Password Settings</h1>
         <HR />
         <h3 className="text-white">Current Password</h3>
